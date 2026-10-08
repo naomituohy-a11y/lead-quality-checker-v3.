@@ -134,7 +134,6 @@ def save_to_cache(company_name: str, domain: str, status: str, explanation: str,
     finally:
         conn.close()
 
-
 def norm_text(value: Any) -> str:
     if value is None:
         return ""
@@ -149,7 +148,6 @@ def norm_text(value: Any) -> str:
     text = re.sub(r"\s+", " ", text).strip()
     return text.casefold()
 
-
 def norm_key(value: Any) -> str:
     text = norm_text(value)
     text = text.replace("&", " and ")
@@ -161,7 +159,6 @@ def norm_key(value: Any) -> str:
     text = re.sub(r"\s+", " ", text).strip()
     return text
 
-
 def clean_header(value: Any) -> str:
     text = "" if value is None else str(value)
     text = unicodedata.normalize("NFKC", text)
@@ -169,9 +166,7 @@ def clean_header(value: Any) -> str:
     text = text.strip().lower().replace("_", " ")
     return re.sub(r"[^a-z0-9]+", " ", text).strip()
 
-
 PLACEHOLDER_VALUES = {"", "picklist", "leave blank", "blank", "integer", "text", "date", "dd mm yyyy", "mm dd yyyy", "https www", "http www", "do not map"}
-
 
 def is_placeholder(value: Any) -> bool:
     key = norm_key(value)
@@ -179,7 +174,6 @@ def is_placeholder(value: Any) -> bool:
     if key in PLACEHOLDER_VALUES:
         return True
     return raw.startswith(("all accepted", "target the below", "no proof", "no toll", "no fee", "please map"))
-
 
 def looks_like_template_row(row: pd.Series) -> bool:
     values = [str(v).strip() for v in row.tolist() if str(v).strip()]
@@ -191,7 +185,6 @@ def looks_like_template_row(row: pd.Series) -> bool:
         return True
     placeholder_count = sum(1 for value in values if is_placeholder(value))
     return bool(values and placeholder_count / len(values) >= 0.6)
-
 
 SYNONYM_GROUPS = [
     ["us", "usa", "u s", "u s a", "united states", "united states of america", "america"],
@@ -215,7 +208,6 @@ SYNONYM_GROUPS = [
     ["manufacturing", "manufacturing and process industries", "manufacturing process industries"],
 ]
 
-
 def canonical_key(value: Any) -> str:
     key = norm_key(value)
     if not key:
@@ -225,7 +217,6 @@ def canonical_key(value: Any) -> str:
         if key in group_keys:
             return group_keys[0]
     return key
-
 
 def expanded_keys(value: Any) -> List[str]:
     key = norm_key(value)
@@ -241,7 +232,6 @@ def expanded_keys(value: Any) -> List[str]:
                 if item and item not in output:
                     output.append(item)
     return output
-
 
 FIELD_ALIASES: Dict[str, List[str]] = {
     "company": ["company", "company name", "account", "account name", "organisation", "organization", "business name", "companyname"],
@@ -259,7 +249,6 @@ FIELD_ALIASES: Dict[str, List[str]] = {
     "job_title": ["job title", "job_title", "jobtitle", "title", "jobtitletext", "job title text"],
 }
 
-
 def score_header(header: str, alias: str) -> int:
     header_clean = clean_header(header)
     alias_clean = clean_header(alias)
@@ -274,7 +263,6 @@ def score_header(header: str, alias: str) -> int:
     if alias_tokens and alias_tokens.issubset(header_tokens):
         return 80
     return int(fuzz.token_sort_ratio(header_clean, alias_clean))
-
 
 def detect_columns(df: pd.DataFrame) -> Dict[str, str]:
     result: Dict[str, str] = {}
@@ -298,7 +286,6 @@ def detect_columns(df: pd.DataFrame) -> Dict[str, str]:
             used_columns.add(best_col)
     return result
 
-
 def field_for_picklist_column(column_name: Any) -> str:
     header = clean_header(column_name)
     if not header or "county" in header.split():
@@ -313,11 +300,9 @@ def field_for_picklist_column(column_name: Any) -> str:
                 best_field = field
     return best_field if best_score >= 72 else ""
 
-
 def is_value_or_code_column(column_name: Any) -> bool:
     header = clean_header(column_name)
     return header == "value" or header.startswith("value ") or header == "code" or header.endswith(" code") or " value " in f" {header} "
-
 
 def add_allowed(allowed: Dict[str, Dict[str, str]], field: str, value: Any) -> None:
     if not field or is_placeholder(value):
@@ -328,7 +313,6 @@ def add_allowed(allowed: Dict[str, Dict[str, str]], field: str, value: Any) -> N
     allowed.setdefault(field, {})
     for key in expanded_keys(text):
         allowed[field].setdefault(key, text)
-
 
 def extract_picklist_rules_from_df(df_pick: pd.DataFrame) -> Dict[str, Any]:
     allowed: Dict[str, Dict[str, str]] = {}
@@ -371,7 +355,6 @@ def extract_picklist_rules_from_df(df_pick: pd.DataFrame) -> Dict[str, Any]:
         "toll_free_prefixes": sorted(set(toll_free_prefixes)),
     }
 
-
 def merge_rule_sets(rule_sets: List[Dict[str, Any]]) -> Dict[str, Any]:
     merged_allowed: Dict[str, Dict[str, str]] = {}
     mapping_pairs = []
@@ -389,7 +372,6 @@ def merge_rule_sets(rule_sets: List[Dict[str, Any]]) -> Dict[str, Any]:
         "samples": {field: list(values.values())[:10] for field, values in merged_allowed.items()},
         "toll_free_prefixes": sorted(set(toll_free_prefixes)),
     }
-
 
 def match_value(value: Any, allowed_map: Dict[str, str], allow_fuzzy: bool = True) -> Tuple[str, str, int]:
     raw = str(value or "").strip()
@@ -411,9 +393,7 @@ def match_value(value: Any, allowed_map: Dict[str, str], allow_fuzzy: bool = Tru
                 return "Review", f"possible fuzzy match to {allowed_map[matched_key]} ({score})", score
     return "No Match", "not found in picklist", 0
 
-
 COMPANY_SUFFIXES = {"ltd", "limited", "co", "company", "corp", "corporation", "inc", "incorporated", "plc", "llc", "sa", "ag", "nv", "se", "bv", "oy", "ab", "aps", "as", "sarl", "sas", "spa", "gmbh", "pte", "pty", "sdn", "bhd", "holdings", "holding", "group"}
-
 
 def email_domain(email: Any) -> str:
     text = str(email or "").strip()
@@ -421,20 +401,17 @@ def email_domain(email: Any) -> str:
         return ""
     return text.split("@", 1)[1].strip().lower()
 
-
 def clean_domain(domain: Any) -> str:
     text = str(domain or "").strip().lower()
     text = re.sub(r"^https?://", "", text)
     text = re.sub(r"/.*$", "", text)
     return text.replace("www.", "")
 
-
 def domain_base(domain: Any) -> str:
     text = clean_domain(domain)
     if not text:
         return ""
     return re.sub(r"[^a-z0-9]", "", text.split(".")[0])
-
 
 def company_tokens(company: Any) -> List[str]:
     text = str(company or "")
@@ -444,7 +421,6 @@ def company_tokens(company: Any) -> List[str]:
     tokens = [token for token in tokens if token not in COMPANY_SUFFIXES]
     tokens = [token for token in tokens if token not in {"of", "and", "the", "for", "to", "a", "an"}]
     return tokens
-
 
 def compare_company_domain(company: Any, email: Any, website: Any) -> Tuple[str, str, int]:
     company_text = str(company or "").strip()
@@ -465,7 +441,6 @@ def compare_company_domain(company: Any, email: Any, website: Any) -> Tuple[str,
     if score >= 70:
         return "Review", f"weak fuzzy company/domain match ({score})", score
     return "No Match", f"low company/domain similarity ({score})", score
-
 
 def run_ai_web_research(company: str, domain: str, country: str, api_key: str) -> Tuple[str, str, List[str]]:
     if not OpenAI or not api_key:
@@ -501,7 +476,6 @@ def run_ai_web_research(company: str, domain: str, country: str, api_key: str) -
     except Exception as e:
         return "Review", f"AI research failed: {str(e)}", []
 
-
 def phone_to_string(raw_phone: Any) -> str:
     if raw_phone is None:
         return ""
@@ -517,14 +491,12 @@ def phone_to_string(raw_phone: Any) -> str:
         text = text.split(".", 1)[0]
     return text
 
-
 def normalise_phone(raw_phone: Any) -> str:
     phone = phone_to_string(raw_phone)
     phone = re.sub(r"[^\d+]", "", phone)
     if phone.startswith("00"):
         phone = "+" + phone[2:]
     return phone
-
 
 def is_toll_free(phone: Any, extra_prefixes: List[str]) -> bool:
     cleaned = normalise_phone(phone)
@@ -535,7 +507,6 @@ def is_toll_free(phone: Any, extra_prefixes: List[str]) -> bool:
         if prefix_digits and digits.startswith(prefix_digits):
             return True
     return False
-
 
 def phone_check(raw_phone: Any, toll_free_prefixes: List[str]) -> Tuple[str, str, int]:
     phone = normalise_phone(raw_phone)
@@ -556,9 +527,7 @@ def phone_check(raw_phone: Any, toll_free_prefixes: List[str]) -> Tuple[str, str
     except Exception:
         return "Review", "could not parse phone", 0
 
-
 TITLE_TERMS = ["chief", "ceo", "cfo", "cio", "cto", "coo", "ciso", "president", "vice president", "vp", "svp", "evp", "director", "head", "manager", "technology", "information technology", "operations", "digital", "data", "security", "infrastructure", "systems"]
-
 
 def title_relevance(title: Any, function: Any, level: Any) -> Tuple[str, str, int]:
     combined = f" {norm_key(title)} {norm_key(function)} {norm_key(level)} "
@@ -585,18 +554,15 @@ def title_relevance(title: Any, function: Any, level: Any) -> Tuple[str, str, in
         return "Review", "possible target signal: " + ", ".join(sorted(set(hits))), score
     return "No Match", "no clear target title signal", score
 
-
 WEIGHTS = {"country": 15, "industry": 15, "company_size": 10, "function": 15, "job_level": 15, "title": 15, "domain": 10, "phone": 5}
-
 
 def points_for_status(status: str, weight: int) -> float:
     status_clean = norm_key(status)
-    if status_clean in {"match", "verified_match", "rebrand"}:
+    if status_clean in {"match", "verified_match", "rebrand", "affiliated"}:
         return float(weight)
     if status_clean in {"review", "rule missing", "column missing", "unverified"}:
         return weight * 0.5
     return 0.0
-
 
 def overall_status(score: float) -> str:
     if score >= 85:
@@ -604,7 +570,6 @@ def overall_status(score: float) -> str:
     if score >= 60:
         return "REVIEW"
     return "FAIL"
-
 
 QA_COLUMNS = [
     "QA_Country_Status", "QA_Country_Reason", "QA_Country_Score",
@@ -622,10 +587,9 @@ QA_COLUMNS = [
     "QA_Missing_Fields", "QA_Score", "QA_Overall_Status", "QA_Issues", "QA_Debug_Notes",
 ]
 
-
 def fill_for_value(value: Any) -> PatternFill:
     text = norm_key(value)
-    if text in {"pass", "match", "yes", "verified_match", "rebrand"}:
+    if text in {"pass", "match", "yes", "verified_match", "rebrand", "affiliated"}:
         return CELL_GREEN
     if text in {"review", "rule missing", "column missing", "unverified"}:
         return CELL_AMBER
@@ -634,7 +598,6 @@ def fill_for_value(value: Any) -> PatternFill:
     if not text:
         return CELL_GREEN
     return CELL_BLUE
-
 
 def write_results_to_workbook(master_bytes: bytes, sheet_name: str, results: pd.DataFrame, qa_columns: List[str], apply_colours: bool) -> bytes:
     workbook = load_workbook(io.BytesIO(master_bytes))
@@ -674,12 +637,10 @@ def write_results_to_workbook(master_bytes: bytes, sheet_name: str, results: pd.
     output.seek(0)
     return output.read()
 
-
 def process_file(master_bytes: bytes, picklist_bytes: bytes, master_sheet: str, picklist_sheets: List[str], apply_colours: bool, use_ai: bool, openai_key: str, max_ai_calls: int) -> Tuple[bytes, Dict[str, Any]]:
     master_df = pd.read_excel(io.BytesIO(master_bytes), sheet_name=master_sheet, dtype=str, keep_default_na=False)
     rule_sets = []
     
-    # Process picklists if provided
     if picklist_bytes and picklist_sheets:
         for pick_sheet in picklist_sheets:
             picklist_df = pd.read_excel(io.BytesIO(picklist_bytes), sheet_name=pick_sheet, dtype=str, keep_default_na=False)
@@ -741,15 +702,17 @@ def process_file(master_bytes: bytes, picklist_bytes: bytes, master_sheet: str, 
         ai_expl = ""
         ai_links = []
 
-        if domain_status == "No Match" and use_ai and ai_calls_made < max_ai_calls:
+        if domain_status in ["No Match", "Review"] and use_ai and ai_calls_made < max_ai_calls:
             comp_val = get_value(row, "company")
             web_val = email_domain(get_value(row, "email")) or clean_domain(get_value(row, "website"))
             cntry_val = get_value(row, "country")
             if comp_val and web_val:
                 ai_calls_made += 1
                 ai_status, ai_expl, ai_links = run_ai_web_research(comp_val, web_val, cntry_val, openai_key)
+                
+                # CHANGED: "Match" to "Affiliated"
                 if ai_status in {"VERIFIED_MATCH", "REBRAND"}:
-                    domain_status = "Match"
+                    domain_status = "Affiliated"
                     domain_reason = f"AI Verified: {ai_expl}"
                     domain_score = 90
 
@@ -760,7 +723,9 @@ def process_file(master_bytes: bytes, picklist_bytes: bytes, master_sheet: str, 
         result["AI_Source_Links"] = ", ".join(ai_links)
         
         total_score += points_for_status(domain_status, WEIGHTS["domain"])
-        if domain_status not in {"Match", "VERIFIED_MATCH", "REBRAND"}:
+        
+        # CHANGED: "Affiliated" prevents adding a domain issue
+        if domain_status not in {"Match", "VERIFIED_MATCH", "REBRAND", "Affiliated"}:
             issues.append("domain")
 
         phone_status, phone_reason, phone_score = phone_check(get_value(row, "phone"), rules.get("toll_free_prefixes", []))
@@ -804,7 +769,6 @@ with st.sidebar:
     admin_password = st.text_input("Admin Password (Access Protection)", type="password")
     use_ai = st.toggle("Enable AI Web Research", value=False, help="Uses OpenAI API with web search to verify domain/company mismatches.")
     
-    # AUTOMATICALLY PULLS API KEY FROM RAILWAY
     env_key = get_secret("OPENAI_API_KEY")
     if env_key:
         openai_key = env_key
@@ -814,8 +778,6 @@ with st.sidebar:
     max_ai_calls = st.slider("Max AI Lookups Per Run (Budget Cap)", min_value=5, max_value=100, value=25, step=5, help="Hard stop to prevent runaway API costs.")
 
 master_file = st.file_uploader("Upload Wholesale Master (.xlsx)", type=["xlsx"])
-
-# PICKLIST UPLOAD MADE OPTIONAL
 picklist_file = st.file_uploader("Upload Wholesale Picklist (.xlsx) [Optional]", type=["xlsx"])
 
 master_sheet = None
@@ -848,7 +810,6 @@ if "output_bytes" not in st.session_state:
 if "debug_info" not in st.session_state:
     st.session_state.debug_info = None
 
-# BUTTON ACTIVATES WITHOUT A PICKLIST
 can_run = master_bytes is not None and master_sheet is not None
 
 if use_ai and not openai_key:
