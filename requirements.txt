@@ -1,0 +1,7 @@
+streamlit
+pandas
+openpyxl
+rapidfuzz
+phonenumbers
+openai
+psycopg2-binary
