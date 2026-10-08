@@ -678,10 +678,14 @@ def write_results_to_workbook(master_bytes: bytes, sheet_name: str, results: pd.
 def process_file(master_bytes: bytes, picklist_bytes: bytes, master_sheet: str, picklist_sheets: List[str], apply_colours: bool, use_ai: bool, openai_key: str, max_ai_calls: int) -> Tuple[bytes, Dict[str, Any]]:
     master_df = pd.read_excel(io.BytesIO(master_bytes), sheet_name=master_sheet, dtype=str, keep_default_na=False)
     rule_sets = []
-    for pick_sheet in picklist_sheets:
-        picklist_df = pd.read_excel(io.BytesIO(picklist_bytes), sheet_name=pick_sheet, dtype=str, keep_default_na=False)
-        rule_sets.append(extract_picklist_rules_from_df(picklist_df))
-    rules = merge_rule_sets(rule_sets)
+    
+    # Process picklists if provided
+    if picklist_bytes and picklist_sheets:
+        for pick_sheet in picklist_sheets:
+            picklist_df = pd.read_excel(io.BytesIO(picklist_bytes), sheet_name=pick_sheet, dtype=str, keep_default_na=False)
+            rule_sets.append(extract_picklist_rules_from_df(picklist_df))
+            
+    rules = merge_rule_sets(rule_sets) if rule_sets else {"allowed": {}, "allowed_counts": {}, "mapping_pairs": [], "samples": {}, "toll_free_prefixes": []}
     colmap = detect_columns(master_df)
     results = []
     skipped_rows = []
@@ -787,7 +791,7 @@ def process_file(master_bytes: bytes, picklist_bytes: bytes, master_sheet: str, 
     if results_df.empty:
         results_df = pd.DataFrame(columns=["_excel_row"] + QA_COLUMNS)
     output_bytes = write_results_to_workbook(master_bytes=master_bytes, sheet_name=master_sheet, results=results_df, qa_columns=QA_COLUMNS, apply_colours=apply_colours)
-    debug = {"detected_columns": colmap, "allowed_counts": rules["allowed_counts"], "mapping_pairs": rules["mapping_pairs"][:100], "picklist_samples": rules["samples"], "toll_free_prefixes": rules.get("toll_free_prefixes", []), "skipped_template_rows": skipped_rows, "processed_rows": len(results_df), "ai_calls_executed": ai_calls_made}
+    debug = {"detected_columns": colmap, "allowed_counts": rules.get("allowed_counts", {}), "mapping_pairs": rules.get("mapping_pairs", [])[:100], "picklist_samples": rules.get("samples", {}), "toll_free_prefixes": rules.get("toll_free_prefixes", []), "skipped_template_rows": skipped_rows, "processed_rows": len(results_df), "ai_calls_executed": ai_calls_made}
     return output_bytes, debug
 
 
@@ -799,11 +803,21 @@ with st.sidebar:
     st.header("Configuration & Cost Control")
     admin_password = st.text_input("Admin Password (Access Protection)", type="password")
     use_ai = st.toggle("Enable AI Web Research", value=False, help="Uses OpenAI API with web search to verify domain/company mismatches.")
-    openai_key = st.text_input("OpenAI API Key", type="password", help="Enter your secret API key. Never shared.")
+    
+    # AUTOMATICALLY PULLS API KEY FROM RAILWAY
+    env_key = get_secret("OPENAI_API_KEY")
+    if env_key:
+        openai_key = env_key
+    else:
+        openai_key = st.text_input("OpenAI API Key", type="password", help="Enter your secret API key. Never shared.")
+        
     max_ai_calls = st.slider("Max AI Lookups Per Run (Budget Cap)", min_value=5, max_value=100, value=25, step=5, help="Hard stop to prevent runaway API costs.")
 
 master_file = st.file_uploader("Upload Wholesale Master (.xlsx)", type=["xlsx"])
-picklist_file = st.file_uploader("Upload Wholesale Picklist (.xlsx)", type=["xlsx"])
+
+# PICKLIST UPLOAD MADE OPTIONAL
+picklist_file = st.file_uploader("Upload Wholesale Picklist (.xlsx) [Optional]", type=["xlsx"])
+
 master_sheet = None
 picklist_sheets: List[str] = []
 master_bytes = None
@@ -834,7 +848,8 @@ if "output_bytes" not in st.session_state:
 if "debug_info" not in st.session_state:
     st.session_state.debug_info = None
 
-can_run = master_bytes is not None and picklist_bytes is not None and master_sheet is not None and len(picklist_sheets) > 0
+# BUTTON ACTIVATES WITHOUT A PICKLIST
+can_run = master_bytes is not None and master_sheet is not None
 
 if use_ai and not openai_key:
     st.warning("Please enter your OpenAI API key in the sidebar to use AI Web Research.")
