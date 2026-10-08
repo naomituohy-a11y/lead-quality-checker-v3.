@@ -40,7 +40,6 @@ CELL_AMBER = PatternFill(start_color="FFF2CC", end_color="FFF2CC", fill_type="so
 CELL_RED = PatternFill(start_color="F4CCCC", end_color="F4CCCC", fill_type="solid")
 DASH_CHARS = "\u2010\u2011\u2012\u2013\u2014\u2212"
 
-# --- SAFE SECRETS WRAPPER ---
 def get_secret(key: str, default: Any = None) -> Any:
     val = os.environ.get(key)
     if val:
@@ -52,7 +51,6 @@ def get_secret(key: str, default: Any = None) -> Any:
         pass
     return default
 
-# --- DATABASE & CACHE SETUP ---
 def get_db_connection():
     db_url = get_secret("DATABASE_URL")
     if not db_url or not psycopg2:
@@ -710,7 +708,6 @@ def process_file(master_bytes: bytes, picklist_bytes: bytes, master_sheet: str, 
                 ai_calls_made += 1
                 ai_status, ai_expl, ai_links = run_ai_web_research(comp_val, web_val, cntry_val, openai_key)
                 
-                # CHANGED: "Match" to "Affiliated"
                 if ai_status in {"VERIFIED_MATCH", "REBRAND"}:
                     domain_status = "Affiliated"
                     domain_reason = f"AI Verified: {ai_expl}"
@@ -724,7 +721,6 @@ def process_file(master_bytes: bytes, picklist_bytes: bytes, master_sheet: str, 
         
         total_score += points_for_status(domain_status, WEIGHTS["domain"])
         
-        # CHANGED: "Affiliated" prevents adding a domain issue
         if domain_status not in {"Match", "VERIFIED_MATCH", "REBRAND", "Affiliated"}:
             issues.append("domain")
 
@@ -786,12 +782,12 @@ master_bytes = None
 picklist_bytes = None
 
 if master_file is not None:
-    master_bytes = master_file.read()
+    master_bytes = master_file.getvalue()
     master_workbook = load_workbook(io.BytesIO(master_bytes), read_only=True)
     master_sheet = st.selectbox("Master sheet to process", master_workbook.sheetnames)
 
 if picklist_file is not None:
-    picklist_bytes = picklist_file.read()
+    picklist_bytes = picklist_file.getvalue()
     picklist_workbook = load_workbook(io.BytesIO(picklist_bytes), read_only=True)
     default_sheets = []
     for sheet in picklist_workbook.sheetnames:
