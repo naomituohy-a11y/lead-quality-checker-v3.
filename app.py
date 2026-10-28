@@ -1085,7 +1085,7 @@ if master_bytes and master_sheet:
 if picklist_bytes:
     candidate_sheets = picklist_sheets or load_workbook(io.BytesIO(picklist_bytes), read_only=True).sheetnames
     campaign_frames = {name: pd.read_excel(io.BytesIO(picklist_bytes), sheet_name=name, dtype=str, keep_default_na=False) for name in candidate_sheets}
-    industry_headers = {'industry', 'industries', 'company industry', 'leadscale industry', 'target industry', 'target industries', 'industry value', 'industry values', 'accepted industries'}
+    industry_headers = {'industry', 'industries', 'company industry', 'leadscale industry', 'target industry', 'target industries', 'c industry', 'companyindustry', 'indcode1', 'indcode1 main industry', 'industry value', 'industry values', 'accepted industries'}
     candidate_columns = [(name, col) for name, frame in campaign_frames.items() for col in frame.columns if clean_header(col) in industry_headers]
     if len(candidate_columns) == 1:
         industry_campaign_sheet, industry_campaign_column = candidate_columns[0]
